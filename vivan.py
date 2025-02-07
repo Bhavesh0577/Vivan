@@ -17,7 +17,7 @@ faq_questions = [
 ]
 
 
-genai.configure(api_key="AIzaSyArOM2WQo89AfBjawULy96GaUjUyaw31vI")
+genai.configure(api_key="API_KEY")
 
 def translate_text(text, target_lang):
     translator = Translator()
