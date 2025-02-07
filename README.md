@@ -26,7 +26,7 @@ To install the Vivan App, follow these steps:
     ```
 3. Install the dependencies:
     ```bash
-    npm install
+    streamlit run vivan.py
     ```
 
 ## Usage
