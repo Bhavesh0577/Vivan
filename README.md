@@ -5,7 +5,6 @@ Welcome to the Vivan App! This README will guide you through the setup and usage
 ## Table of Contents
 - [Introduction](#introduction)
 - [Installation](#installation)
-- [Usage](#usage)
 
 
 ## Introduction
@@ -29,9 +28,6 @@ To install the Vivan App, follow these steps:
     streamlit run vivan.py
     ```
 
-## Usage
-To start using the Vivan App, run the following command:
-```bash
-npm start
-```
+
+
 
