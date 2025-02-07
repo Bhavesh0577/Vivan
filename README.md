@@ -8,7 +8,7 @@ Welcome to the Vivan App! This README will guide you through the setup and usage
 
 
 ## Introduction
-The Vivan App is designed to [brief description of what the app does]. It aims to [ITR Recommendation].
+The Vivan App is designed to Recommend the ITR Form based on user input . It aims to provide the details tax saving Investments on new regime.
 
 
 
