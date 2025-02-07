@@ -2,44 +2,40 @@ import streamlit as st
 import speech_recognition as sr
 from googletrans import Translator
 import google.generativeai as genai
-
-
-faq_questions = [
-    "Give the eligibility criteria for ITR 1",
-                "Give the eligibility criteria for ITR 2",
-                "Give the eligibility criteria for ITR 3",
-                "Give the eligibility criteria for ITR 4",
-                "Give the eligibility criteria for ITR 5",
-                "Give the eligibility criteria for ITR 6",
-                "Give the eligibility criteria for ITR 7",
-                "What are the tax-saving options under Section 80C?",
-                "Who needs to file ITR?"
-]
-
-
 genai.configure(api_key="API_KEY")
 
-def translate_text(text, target_lang):
-    translator = Translator()
-    return translator.translate(text, dest=target_lang).text
+def calculate_tax_liability(gti, deductions):
+    taxable_income_old = gti - sum(deductions.values())
+    taxable_income_new = gti  # No deductions in the new regime
+    
+    # Old Regime Tax Calculation
+    old_tax = (
+        (0 if taxable_income_old <= 250000 else 
+         0.05 * min(taxable_income_old - 250000, 250000)) +
+        0.2 * min(max(taxable_income_old - 500000, 0), 500000) +
+        0.3 * max(taxable_income_old - 1000000, 0)
+    )
+    
+    # New Regime Tax Calculation
+    new_tax = (
+        (0 if taxable_income_new <= 300000 else 
+         0.05 * min(taxable_income_new - 300000, 300000)) +
+        0.1 * min(max(taxable_income_new - 600000, 0), 300000) +
+        0.15 * min(max(taxable_income_new - 900000, 0), 300000) +
+        0.2 * min(max(taxable_income_new - 1200000, 0), 300000) +
+        0.3 * max(taxable_income_new - 1500000, 0)
+    )
+    
+    # Add 4% Cess
+    old_total_tax = old_tax + (0.04 * old_tax)
+    new_total_tax = new_tax + (0.04 * new_tax)
+    
+    return old_total_tax, new_total_tax
 
 def get_gemini_response(prompt):
     model = genai.GenerativeModel("gemini-1.5-flash")
     response = model.generate_content(prompt)
     return response.text if response else "Could not generate a response."
-
-def recognize_speech():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.write("Listening...")
-        try:
-            audio = recognizer.listen(source, timeout=5)
-            query = recognizer.recognize_google(audio)
-            return query
-        except sr.UnknownValueError:
-            return "Could not understand the audio."
-        except sr.RequestError:
-            return "Could not request results, please check your connection."
 
 def main():
     st.set_page_config(page_title="Tax Assistant Chatbot", layout="wide")
@@ -62,39 +58,43 @@ def main():
         section_11_exemption = st.radio("Section 11 Exemption (for Trusts)?", ["Yes", "No"])
         special_filing = st.radio("Special Filing (Sec 139(4A), 139(4B), etc.)?", ["Yes", "No"])
         
-        if st.button("Get ITR Recommendation and Tax-Saving Tips"):
-            user_input = (
-                f"Determine the correct ITR form based on: Salary={salary}, Rental={rental}, Business={business}, "
-                f"Presumptive={presumptive}, Capital Gains={capital}, Foreign={foreign}, Crypto={crypto}, "
-                f"Directorship={directorship}, Equity Shares={equity_shares}, Entity Type={entity_type}, "
-                f"Section 11 Exemption={section_11_exemption}, Special Filing={special_filing}. "
-                f"Suggest tax-saving investments under 80C, 80D, and 80E, including PPF, ELSS, NPS, insurance, and home loan benefits. "
-                f"Ensure recommendations are precise and relevant."
+        gti = salary + rental + business + presumptive + capital + foreign + crypto
+        st.write(f"Calculated Gross Total Income (GTI): ₹{gti:,.2f}")
+        
+        deductions = {
+            "80C (PPF, ELSS, etc.)": st.number_input("80C Deductions", min_value=0, value=150000),
+            "80D (Health Insurance)": st.number_input("80D Deductions", min_value=0, value=50000),
+            "Home Loan Interest (Sec 24B)": st.number_input("Home Loan Interest", min_value=0, value=200000)
+        }
+        
+        ai_response = "Enter your income details and click 'Calculate Tax Liability' to get recommendations."
+
+        if st.button("Calculate Tax Liability"):
+            old_tax, new_tax = calculate_tax_liability(gti, deductions)
+            st.write(f"Old Regime Tax: ₹{old_tax:,.2f}")
+            st.write(f"New Regime Tax: ₹{new_tax:,.2f}")
+            better_regime = "Old" if old_tax < new_tax else "New"
+            st.success(f"Recommended Regime: {better_regime} Tax Regime")
+            
+            # Generate AI-based recommendation
+            ai_prompt = (
+                f"User's Gross Total Income: ₹{gti:,.2f}.\n"
+                f"Old Regime Tax: ₹{old_tax:,.2f}, New Regime Tax: ₹{new_tax:,.2f}.\n"
+                "Recommend the appropriate ITR form and suggest tax-saving investments."
             )
-            response = get_gemini_response(user_input)
-            st.session_state.response = response
+            
+            ai_response = get_gemini_response(ai_prompt)
     
     st.subheader("AI Recommendation")
-    st.write(st.session_state.get("response", "Enter details in the sidebar to get recommendations."))
+    st.write(ai_response)
     
     st.subheader("Ask Your Queries")
-    selected_question = st.selectbox("Select a common query:", ["Select a question"] + faq_questions)
-    query_text = st.text_input("Type your question here:", value=selected_question if selected_question != "Select a question" else "")
-    # query_text = st.text_input("Type your question here:")
-    # query_text = st.text_input("Type your question here:")
+    query_text = st.text_input("Type your question here:")
     if st.button("Ask via Text"):
         if query_text:
             query_response = get_gemini_response(query_text)
             st.write("### Answer:")
             st.write(query_response)
-    
-    if st.button("Ask via Voice"):
-        voice_query = recognize_speech()
-        if voice_query:
-            st.write(f"### You asked: {voice_query}")
-            voice_response = get_gemini_response(voice_query)
-            st.write("### Answer:")
-            st.write(voice_response)
 
 if __name__ == "__main__":
     main()
