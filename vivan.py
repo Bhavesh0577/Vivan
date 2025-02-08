@@ -83,11 +83,34 @@ def main():
         
         # Generate AI-based recommendation
         ai_prompt = (
-            f"User's Gross Total Income: ₹{gti:,.2f}.\n"
-            f"Old Regime Tax: ₹{old_tax:,.2f}, New Regime Tax: ₹{new_tax:,.2f}.\n"
-            f"User is {'a Defense Personnel who comes under ITR-3. Provide a detailed table with columns (Tax Category, Investment Options, Maximum Limit, Benefits, Special Conditions) including defense-specific exemptions.' if is_defense else 'not a Defense Personnel.First provide the ITR filing categoty 1-7. Provide a table with columns (Tax Category, Investment Options, Maximum Limit, Benefits, Applicability, Tax calculations) including general tax-saving investments.'}.\n"
-            "Ensure all tables have properly filled values and relevant details. Format the response professionally with clear headings and structured data."
-        )
+    f"User's Gross Total Income: ₹{gti:,.2f}.\n"
+    f"Old Regime Tax: ₹{old_tax:,.2f}, New Regime Tax: ₹{new_tax:,.2f}.\n"
+    "Recommend the appropriate ITR form and suggest tax-saving investments.\n"
+    "Generate structured tables with the following details:\n\n"
+    
+    "1. **Tax Saving Investments Table**\n"
+    "| Tax Category | Investment Options | Maximum Limit | Benefits | Special Conditions |\n"
+    "|-------------|--------------------|---------------|----------|--------------------|\n"
+    "(Fill with applicable tax-saving options)\n\n"
+    
+    "2. **Old vs New Tax Regime Comparison**\n"
+    "| Income Slab | Old Regime Tax (₹) | New Regime Tax (₹) | Difference (₹) | Recommendation |\n"
+    "|------------|------------------|------------------|----------------|---------------|\n"
+    "(Fill with computed values based on user input)\n\n"
+    
+    "3. **Tax Deductions Analysis**\n"
+    "| Deduction Type | Section | Amount (₹) | Percentage Saved | Impact on Tax |\n"
+    "|---------------|---------|------------|----------------|---------------|\n"
+    "(Include 80C, 80D, 80E, etc., with actual savings impact)\n\n"
+    
+    "4. **Final Tax Savings Strategies**\n"
+    "| Strategy | Estimated Savings (₹) | Additional Benefits | Applicability |\n"
+    "|---------|--------------------|------------------|---------------|\n"
+    "(Provide personalized tax-saving strategies based on computed data)\n"
+    
+    "Ensure the data is based on actual calculations rather than assumptions. Keep the response concise, professional, and informative."
+)
+
         ai_response = get_gemini_response(ai_prompt)
         
         st.subheader("AI Recommendation")
