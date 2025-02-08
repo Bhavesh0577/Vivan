@@ -1,6 +1,7 @@
 import streamlit as st
 import speech_recognition as sr
-import google.generativeai as genai
+import ollama  # Using Ollama for local model inference
+
 
 def calculate_tax_liability(gti, deductions):
     taxable_income_old = gti - sum(deductions.values())
@@ -30,10 +31,15 @@ def calculate_tax_liability(gti, deductions):
     
     return old_total_tax, new_total_tax
 
-def get_gemini_response(prompt):
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)
-    return response.text if response else "Could not generate a response."
+def get_local_model_response(prompt):
+    try:
+        response = ollama.generate(model="mistral", prompt=prompt)
+        print("Raw Response:", response)  # Debugging line
+        return response["response"] if "response" in response else "Could not generate a response."
+    except ollama._types.ResponseError as e:
+        print(f"Error: {e}")
+        return f"Ollama Error: {e}"
+
 
 def main():
     st.set_page_config(page_title="Tax Assistant Chatbot", layout="wide")
@@ -56,48 +62,41 @@ def main():
         section_11_exemption = st.radio("Section 11 Exemption (for Trusts)?", ["Yes", "No"])
         special_filing = st.radio("Special Filing (Sec 139(4A), 139(4B), etc.)?", ["Yes", "No"])
         
-        # Checkbox for Defense Personnel
-        is_defense = st.checkbox("Are you a Defense Personnel?")
+        gti = salary + rental + business + presumptive + capital + foreign + crypto
+        st.write(f"Calculated Gross Total Income (GTI): ₹{gti:,.2f}")
         
         deductions = {
             "80C (PPF, ELSS, etc.)": st.number_input("80C Deductions", min_value=0, value=150000),
             "80D (Health Insurance)": st.number_input("80D Deductions", min_value=0, value=50000),
             "Home Loan Interest (Sec 24B)": st.number_input("Home Loan Interest", min_value=0, value=200000)
         }
+        
+        ai_response = "Enter your income details and click 'Calculate Tax Liability' to get recommendations."
 
-        # Additional deductions for Defense Personnel
-        if is_defense:
-            deductions["Gallantry Award Exemption"] = st.number_input("Gallantry Award Exemption (₹)", min_value=0, value=0)
-            deductions["Disability Pension Exemption"] = st.number_input("Disability Pension Exemption (₹)", min_value=0, value=0)
+        if st.button("Calculate Tax Liability"):
+            old_tax, new_tax = calculate_tax_liability(gti, deductions)
+            st.write(f"Old Regime Tax: ₹{old_tax:,.2f}")
+            st.write(f"New Regime Tax: ₹{new_tax:,.2f}")
+            better_regime = "Old" if old_tax < new_tax else "New"
+            st.success(f"Recommended Regime: {better_regime} Tax Regime")
+            
+            # Generate AI-based recommendation
+            ai_prompt = (
+                f"User's Gross Total Income: ₹{gti:,.2f}.\n"
+                f"Old Regime Tax: ₹{old_tax:,.2f}, New Regime Tax: ₹{new_tax:,.2f}.\n"
+                "Recommend the appropriate ITR form and suggest tax-saving investments.Generate in the form of table like professinal with minimal words but informative. And also give another table consisting of new tax regime and old tax regime with respect to given inputs. Also another table with tax polices like 80C, 80D, 80E etc. with actual numbers and how much percentage will be saved also give gti."
+            )
+            
+            ai_response = get_local_model_response(ai_prompt)
     
-    gti = salary + rental + business + presumptive + capital + foreign + crypto
-    st.subheader("Income and Tax Liability")
-    st.write(f"Calculated Gross Total Income (GTI): ₹{gti:,.2f}")
-    
-    if st.button("Calculate Tax Liability"):
-        old_tax, new_tax = calculate_tax_liability(gti, deductions)
-        st.write(f"Old Regime Tax: ₹{old_tax:,.2f}")
-        st.write(f"New Regime Tax: ₹{new_tax:,.2f}")
-        better_regime = "Old" if old_tax < new_tax else "New"
-        st.success(f"Recommended Regime: {better_regime} Tax Regime")
-        
-        # Generate AI-based recommendation
-        ai_prompt = (
-            f"User's Gross Total Income: ₹{gti:,.2f}.\n"
-            f"Old Regime Tax: ₹{old_tax:,.2f}, New Regime Tax: ₹{new_tax:,.2f}.\n"
-            f"User is {'a Defense Personnel who comes under ITR-3. Provide a detailed table with columns (Tax Category, Investment Options, Maximum Limit, Benefits, Special Conditions) including defense-specific exemptions.' if is_defense else 'not a Defense Personnel.First provide the ITR filing categoty 1-7. Provide a table with columns (Tax Category, Investment Options, Maximum Limit, Benefits, Applicability, Tax calculations) including general tax-saving investments.'}.\n"
-            "Ensure all tables have properly filled values and relevant details. Format the response professionally with clear headings and structured data."
-        )
-        ai_response = get_gemini_response(ai_prompt)
-        
-        st.subheader("AI Recommendation")
-        st.write(ai_response)
+    st.subheader("AI Recommendation")
+    st.write(ai_response)
     
     st.subheader("Ask Your Queries")
     query_text = st.text_input("Type your question here:")
     if st.button("Ask via Text"):
         if query_text:
-            query_response = get_gemini_response(query_text)
+            query_response = get_local_model_response(query_text)
             st.write("### Answer:")
             st.write(query_response)
 
